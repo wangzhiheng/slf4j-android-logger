@@ -55,7 +55,7 @@ public class AndroidLoggerFactory implements ILoggerFactory {
     private final ConcurrentMap<String, Logger> loggerMap;
 
     public AndroidLoggerFactory() {
-        loggerMap = new ConcurrentHashMap<String, Logger>();
+        loggerMap = new ConcurrentHashMap<>();
     }
 
     /**

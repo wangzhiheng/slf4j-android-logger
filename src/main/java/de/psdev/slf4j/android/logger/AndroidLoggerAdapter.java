@@ -90,31 +90,27 @@ import java.util.regex.Pattern;
  * @author Philip Schiffer <philip.schiffer@gmail.com
  */
 public class AndroidLoggerAdapter extends MarkerIgnoringBase {
-    private static final long serialVersionUID = -1227274521521287937L;
-
-    private static final String NO_MESSAGE = "";
-    private static final StackTraceElement NOT_FOUND = new StackTraceElement(NO_MESSAGE, NO_MESSAGE, NO_MESSAGE, 0);
-
-    // Properties
-    private static final String CONFIGURATION_FILE = "logger.properties";
-    private static final Properties ANDROID_LOGGER_PROPERTIES = new Properties();
-
-    // Current log level and tag
-    private static LogLevel sLogLevel = LogLevel.INFO;
-    private static String sLogTag = "Slf4jAndroidLogger";
-
     /**
      * All system properties used by {@code AndroidLogger} start with this prefix
      */
     public static final String SYSTEM_PREFIX = "de.psdev.slf4j.android.logger.";
     public static final String DEFAULT_LOG_LEVEL_KEY = SYSTEM_PREFIX + "defaultLogLevel";
     public static final String LOG_TAG_KEY = SYSTEM_PREFIX + "logTag";
+    private static final long serialVersionUID = -1227274521521287937L;
+    private static final String NO_MESSAGE = "";
+    private static final StackTraceElement NOT_FOUND = new StackTraceElement(NO_MESSAGE, NO_MESSAGE, NO_MESSAGE, 0);
+    // Properties
+    private static final String CONFIGURATION_FILE = "logger.properties";
+    private static final Properties ANDROID_LOGGER_PROPERTIES = new Properties();
+    // Current log level and tag
+    private static LogLevel sLogLevel = LogLevel.INFO;
+    private static String sLogTag = "Slf4jAndroidLogger";
 
     /**
      * Initialize properties read from properties file
      */
     static {
-        InputStream propertiesInputStream = null;
+        InputStream propertiesInputStream;
         final ClassLoader threadClassLoader = Thread.currentThread().getContextClassLoader();
         if (threadClassLoader != null) {
             propertiesInputStream = threadClassLoader.getResourceAsStream(CONFIGURATION_FILE);
@@ -163,6 +159,66 @@ public class AndroidLoggerAdapter extends MarkerIgnoringBase {
 
     public static void setLogTag(final String logTag) {
         sLogTag = logTag;
+    }
+
+    private static String getStringProperty(final String propertyName) {
+        String propertyValue = null;
+        try {
+            propertyValue = System.getProperty(propertyName);
+        } catch (SecurityException ignored) {
+        }
+        return propertyValue == null ? ANDROID_LOGGER_PROPERTIES.getProperty(propertyName) : propertyValue;
+    }
+
+    private static String getStringProperty(final String propertyName, final String defaultValue) {
+        final String prop = getStringProperty(propertyName);
+        return prop == null ? defaultValue : prop;
+    }
+
+    private static boolean getBooleanProperty(final String propertyName, final boolean defaultValue) {
+        final String prop = getStringProperty(propertyName);
+        return prop == null ? defaultValue : "true".equalsIgnoreCase(prop);
+    }
+
+    private static String getClassNameOnly(final String classNameWithPackage) {
+        final int lastDotPos = classNameWithPackage.lastIndexOf('.');
+        if (lastDotPos == -1) {
+            return classNameWithPackage;
+        }
+        return classNameWithPackage.substring(lastDotPos + 1);
+    }
+
+    /**
+     * Is the given log level currently enabled?
+     *
+     * @param logLevel is this level enabled?
+     */
+    protected static boolean isLevelEnabled(final LogLevel logLevel) {
+        // log level are numerically ordered so can use simple numeric comparison
+        return logLevel.getAndroidLogLevel() >= sLogLevel.getAndroidLogLevel();
+    }
+
+    private static LogLevel stringToLevel(final String levelStr) {
+        if ("trace".equalsIgnoreCase(levelStr)) {
+            return LogLevel.TRACE;
+        }
+        if ("verbose".equalsIgnoreCase(levelStr)) {
+            return LogLevel.TRACE;
+        }
+        if ("debug".equalsIgnoreCase(levelStr)) {
+            return LogLevel.DEBUG;
+        }
+        if ("info".equalsIgnoreCase(levelStr)) {
+            return LogLevel.INFO;
+        }
+        if ("warn".equalsIgnoreCase(levelStr)) {
+            return LogLevel.WARN;
+        }
+        if ("error".equalsIgnoreCase(levelStr)) {
+            return LogLevel.ERROR;
+        }
+        // assume INFO by default
+        return LogLevel.INFO;
     }
 
     /**
@@ -589,6 +645,8 @@ public class AndroidLoggerAdapter extends MarkerIgnoringBase {
         }
     }
 
+    // Property getter
+
     private void log(final LogLevel logLevel, final String message, final Throwable throwable) {
         if (isLevelEnabled(logLevel)) {
             switch (logLevel.getAndroidLogLevel()) {
@@ -654,27 +712,6 @@ public class AndroidLoggerAdapter extends MarkerIgnoringBase {
         }
     }
 
-    // Property getter
-
-    private static String getStringProperty(final String propertyName) {
-        String propertyValue = null;
-        try {
-            propertyValue = System.getProperty(propertyName);
-        } catch (SecurityException ignored) {
-        }
-        return propertyValue == null ? ANDROID_LOGGER_PROPERTIES.getProperty(propertyName) : propertyValue;
-    }
-
-    private static String getStringProperty(final String propertyName, final String defaultValue) {
-        final String prop = getStringProperty(propertyName);
-        return prop == null ? defaultValue : prop;
-    }
-
-    private static boolean getBooleanProperty(final String propertyName, final boolean defaultValue) {
-        final String prop = getStringProperty(propertyName);
-        return prop == null ? defaultValue : "true".equalsIgnoreCase(prop);
-    }
-
     private String enhanced(final String message) {
         final StackTraceElement caller = determineCaller();
         final String classNameOnly = getClassNameOnly(caller.getClassName());
@@ -692,46 +729,5 @@ public class AndroidLoggerAdapter extends MarkerIgnoringBase {
             }
         }
         return NOT_FOUND;
-    }
-
-    private static String getClassNameOnly(final String classNameWithPackage) {
-        final int lastDotPos = classNameWithPackage.lastIndexOf('.');
-        if (lastDotPos == -1) {
-            return classNameWithPackage;
-        }
-        return classNameWithPackage.substring(lastDotPos + 1);
-    }
-
-    /**
-     * Is the given log level currently enabled?
-     *
-     * @param logLevel is this level enabled?
-     */
-    protected static boolean isLevelEnabled(final LogLevel logLevel) {
-        // log level are numerically ordered so can use simple numeric comparison
-        return logLevel.getAndroidLogLevel() >= sLogLevel.getAndroidLogLevel();
-    }
-
-    private static LogLevel stringToLevel(final String levelStr) {
-        if ("trace".equalsIgnoreCase(levelStr)) {
-            return LogLevel.TRACE;
-        }
-        if ("verbose".equalsIgnoreCase(levelStr)) {
-            return LogLevel.TRACE;
-        }
-        if ("debug".equalsIgnoreCase(levelStr)) {
-            return LogLevel.DEBUG;
-        }
-        if ("info".equalsIgnoreCase(levelStr)) {
-            return LogLevel.INFO;
-        }
-        if ("warn".equalsIgnoreCase(levelStr)) {
-            return LogLevel.WARN;
-        }
-        if ("error".equalsIgnoreCase(levelStr)) {
-            return LogLevel.ERROR;
-        }
-        // assume INFO by default
-        return LogLevel.INFO;
     }
 }
